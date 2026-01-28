@@ -1,7 +1,23 @@
-import { atom, onMount } from 'nanostores'
+import { signal } from "@preact/signals-core";
 
 export function createRouter(routes, opts = {}) {
-  let router = atom()
+  let prev
+
+  let router = signal(undefined, {
+    watched: () => {
+      let page = parse(location.href)
+      if (page !== false) router.value = page;
+      if (opts.links !== false) document.body.addEventListener('click', click)
+      window.addEventListener('popstate', change)
+      window.addEventListener('hashchange', change)
+    },
+    unwatched: () => {
+      prev = undefined
+      document.body.removeEventListener('click', click)
+      window.removeEventListener('popstate', change)
+      window.removeEventListener('hashchange', change)
+    }
+  })
   router.routes = Object.keys(routes).map(name => {
     let pattern = routes[name]
 
@@ -19,7 +35,7 @@ export function createRouter(routes, opts = {}) {
     return [name, RegExp('^' + regexp + '$', 'i'), null, pattern]
   })
 
-  let prev
+  
   let parse = href => {
     let url = new URL(href.replace(/#$/, ''), 'http://a')
     let cache = url.pathname + url.search + url.hash
@@ -78,33 +94,13 @@ export function createRouter(routes, opts = {}) {
     }
   }
 
-  let set = router.set
-  if (process.env.NODE_ENV !== 'production') {
-    delete router.set
-  }
 
   let change = () => {
     let page = parse(location.href)
-    if (page !== false) set(page)
+    if (page !== false) router.value = page;
   }
 
-  if (typeof window !== 'undefined' && typeof location !== 'undefined') {
-    onMount(router, () => {
-      let page = parse(location.href)
-      if (page !== false) set(page)
-      if (opts.links !== false) document.body.addEventListener('click', click)
-      window.addEventListener('popstate', change)
-      window.addEventListener('hashchange', change)
-      return () => {
-        prev = undefined
-        document.body.removeEventListener('click', click)
-        window.removeEventListener('popstate', change)
-        window.removeEventListener('hashchange', change)
-      }
-    })
-  } else {
-    set(parse('/'))
-  }
+  if (typeof window === 'undefined' || typeof location === 'undefined') router.value = parse('/');
 
   router.open = (path, redirect) => {
     let page = parse(path)
@@ -116,7 +112,7 @@ export function createRouter(routes, opts = {}) {
           history.pushState(null, null, path)
         }
       }
-      set(page)
+      router.value = page
     }
   }
 
