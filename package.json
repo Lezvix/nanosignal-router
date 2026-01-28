@@ -1,5 +1,5 @@
 {
-  "name": "@nanostores/router",
+  "name": "nanosignal-router",
   "version": "1.0.0",
   "description": "A tiny (712 bytes) router for Nano Stores state manager",
   "keywords": [
@@ -20,7 +20,7 @@
   },
   "author": "Andrey Sitnik <andrey@sitnik.ru>",
   "license": "MIT",
-  "repository": "nanostores/router",
+  "repository": "Lezvix/nanosignal-router",
   "sideEffects": false,
   "type": "module",
   "types": "./index.d.ts",
