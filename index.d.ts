@@ -1,4 +1,4 @@
-import type { ReadableAtom } from 'nanostores'
+import type { ReadonlySignal } from '@preact/signals-core'
 
 // Splitting string by delimiter
 type Split<S extends string, D extends string> = string extends S
@@ -120,7 +120,7 @@ export interface RouterOptions {
  * ```
  */
 export interface Router<Config extends RouterConfig = RouterConfig>
-  extends ReadableAtom<Page<Config, keyof Config> | undefined> {
+  extends ReadonlySignal<Page<Config, keyof Config> | undefined> {
   /**
    * Open URL without page reloading.
    *
