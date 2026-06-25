@@ -1,23 +1,7 @@
-import { signal } from "@preact/signals-core";
+import { atom, onMount } from 'nanostores'
 
 export function createRouter(routes, opts = {}) {
-  let prev
-
-  let router = signal(undefined, {
-    watched: () => {
-      let page = parse(location.href)
-      if (page !== false) router.value = page;
-      if (opts.links !== false) document.body.addEventListener('click', click)
-      window.addEventListener('popstate', change)
-      window.addEventListener('hashchange', change)
-    },
-    unwatched: () => {
-      prev = undefined
-      document.body.removeEventListener('click', click)
-      window.removeEventListener('popstate', change)
-      window.removeEventListener('hashchange', change)
-    }
-  })
+  let router = atom()
   router.routes = Object.keys(routes).map(name => {
     let pattern = routes[name]
 
@@ -35,7 +19,7 @@ export function createRouter(routes, opts = {}) {
     return [name, RegExp('^' + regexp + '$', 'i'), null, pattern]
   })
 
-  
+  let prev
   let parse = href => {
     let url = new URL(href.replace(/#$/, ''), 'http://a')
     let cache = url.pathname + url.search + url.hash
@@ -53,11 +37,11 @@ export function createRouter(routes, opts = {}) {
           params: callback
             ? callback(...match.slice(1))
             : Object.keys({ ...match.groups }).reduce((params, key) => {
-                params[key] = match.groups[key]
-                  ? decodeURIComponent(match.groups[key])
-                  : ''
-                return params
-              }, {}),
+              params[key] = match.groups[key]
+                ? decodeURIComponent(match.groups[key])
+                : ''
+              return params
+            }, {}),
           path,
           route,
           search: Object.fromEntries(url.searchParams)
@@ -84,8 +68,7 @@ export function createRouter(routes, opts = {}) {
     ) {
       event.preventDefault()
       let hashChanged = location.hash !== link.hash
-      router.open(link.href)
-      if (hashChanged) {
+      if (router.open(link.href) && hashChanged) {
         location.hash = link.hash
         if (link.hash === '' || link.hash === '#') {
           window.dispatchEvent(new HashChangeEvent('hashchange'))
@@ -94,25 +77,39 @@ export function createRouter(routes, opts = {}) {
     }
   }
 
-
   let change = () => {
     let page = parse(location.href)
-    if (page !== false) router.value = page;
+    if (page !== false) router.set(page)
   }
 
-  if (typeof window === 'undefined' || typeof location === 'undefined') router.value = parse('/');
+  if (typeof window !== 'undefined' && typeof location !== 'undefined') {
+    onMount(router, () => {
+      change()
+      if (opts.links !== false) document.body.addEventListener('click', click)
+      window.addEventListener('popstate', change)
+      window.addEventListener('hashchange', change)
+      return () => {
+        prev = undefined
+        document.body.removeEventListener('click', click)
+        window.removeEventListener('popstate', change)
+        window.removeEventListener('hashchange', change)
+      }
+    })
+  } else {
+    router.set(parse('/'))
+  }
 
   router.open = (path, redirect) => {
     let page = parse(path)
     if (page !== false) {
-      if (typeof history !== 'undefined') {
-        if (redirect) {
-          history.replaceState(null, null, path)
-        } else {
-          history.pushState(null, null, path)
+      router.set(page)
+      if (router.value === page) {
+        if (typeof history !== 'undefined') {
+          history[redirect ? 'replaceState' : 'pushState'](null, null, path)
         }
+        return page
       }
-      router.value = page
+      prev = undefined
     }
   }
 
